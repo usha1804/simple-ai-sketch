@@ -1,0 +1,27 @@
+# Node
+frontend/node_modules/
+
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# Models (IMPORTANT)
+*.pt
+*.pth
+*.caffemodel
+
+# Videos / outputs
+*.mp4
+backend/uploads/
+backend/outputs/
+
+# Logs
+*.log
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
