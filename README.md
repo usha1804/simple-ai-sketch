@@ -28,7 +28,35 @@ AI Sketch Studio is a full-stack application that transforms images, videos, web
 * FastAPI (Python)
 * OpenCV (Image Processing)
 * NumPy, SciPy
-* HED (Holistically-Nested Edge Detection)
+* HED (Holistically-Nested Edge Detection), Canny
+
+
+## 🧠 Core Algorithms & Techniques
+
+* 🖤 **Canny Edge Detection**
+  Used for fast and efficient edge extraction in images and videos. Helps in detecting strong and weak edges for sketch generation.
+
+* 🧠 **HED (Holistically-Nested Edge Detection)**
+  Deep learning-based edge detection model for high-quality and detailed sketches, especially for human faces and complex images.
+
+* 🎯 **Image Preprocessing**
+  Includes resizing, normalization, and noise reduction for better edge detection results.
+
+* 🧩 **Region Segmentation**
+  Separates different regions of the image to improve sketch clarity and structure.
+
+* ✍️ **Stroke Rendering**
+  Converts detected edges into smooth, artistic sketch strokes.
+
+* 🎨 **Color Sampling & Filling**
+  Optional coloring system to enhance sketch outputs.
+
+* 🎥 **Video Frame Processing**
+  Processes video frame-by-frame and applies sketch transformation using FFmpeg.
+
+* ⚡ **Real-Time Processing**
+  Optimized pipeline for webcam-based live sketch generation.
+
 
 ### 🔹 Tools & Libraries
 
@@ -95,14 +123,20 @@ npm run dev
 
 ---
 
+
+
 ## 🔄 Workflow / Pipeline
 
 1. Input (Image / Video / Webcam / Text)
 2. Preprocessing (Resize, Normalize)
-3. Edge Detection (Canny / HED Model)
+3. Edge Detection
+
+   * Canny Edge Detection (fast processing)
+   * HED Model (high-quality output)
 4. Region Segmentation
 5. Stroke Rendering
-6. Output Generation (Sketch)
+6. Output Generation (Sketch / Video)
+
 
 ---
 
