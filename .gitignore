@@ -25,3 +25,11 @@ backend/outputs/
 # OS
 .DS_Store
 Thumbs.db
+
+
+backend/models/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.avif

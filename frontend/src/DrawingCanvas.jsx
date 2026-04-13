@@ -1,4 +1,3 @@
-
 import {
   useRef, useState, useCallback, useEffect,
   forwardRef, useImperativeHandle,
@@ -38,12 +37,13 @@ import {
 */
 
 const PENS = {
-  pencil:   { lw: 1.8, alpha: 0.95 },
-  charcoal: { lw: 3.2, alpha: 0.88 },
-  ink:      { lw: 1.4, alpha: 1.00 },
-  brush:    { lw: 4.5, alpha: 0.78 },
-  marker:   { lw: 5.5, alpha: 0.70 },
-  neon:     { lw: 2.0, alpha: 1.00 },
+  pencil:    { lw:1.5,  alpha:.88, color:'#3a3a3a', blur:0,   shadow:'transparent',     jitter:.9,  passes:1, cap:'round'  },
+  charcoal:  { lw:4.5,  alpha:.52, color:'#1a1a1a', blur:2.5, shadow:'rgba(0,0,0,.4)',   jitter:1.8, passes:3, cap:'round'  },
+  ink:       { lw:1.4,  alpha:1.0, color:'#080808', blur:0,   shadow:'transparent',     jitter:0,   passes:1, cap:'round'  },
+  brush:     { lw:6.5,  alpha:.60, color:'#1a1a1a', blur:1.0, shadow:'rgba(0,0,0,.25)', jitter:1.4, passes:2, cap:'round'  },
+  marker:    { lw:7.0,  alpha:.80, color:'#0d0d0d', blur:0,   shadow:'transparent',     jitter:0,   passes:1, cap:'square' },
+  neon:      { lw:2.0,  alpha:.95, color:'#00f5ff', blur:14,  shadow:'#00f5ff',         jitter:0,   passes:1, cap:'round'  },
+
 }
 const SPEED_PTS    = [0,1,2,4,7,12,20,35,60,100]
 const SPEED_LABELS = ['','Slowest','Slow','Normal','Medium','Fast','Faster','Quick','Rapid','Max']
@@ -498,50 +498,84 @@ const DrawingCanvas = forwardRef(function DrawingCanvas({
     fillRafRef.current = requestAnimationFrame(detectChunk)
   }, [colorFillImage, getCtx, detectChunk])
 
+  
+     const applyPen = useCallback((ctx, pen, swMul, pass = 0) => {
+  const lw = pen.lw * (typeof swMul === 'number' ? swMul : 1)
+
+  const baseAlpha =
+    typeof strokeOpacity === 'number'
+      ? Math.min(1, Math.max(0, strokeOpacity)) * pen.alpha
+      : pen.alpha
+
+  ctx.strokeStyle = pen.color
+  ctx.fillStyle = pen.color
+  ctx.lineCap = pen.cap || 'round'
+  ctx.lineJoin = 'round'
+  ctx.globalCompositeOperation = 'source-over'
+
+  ctx.shadowColor = pen.shadow || 'transparent'
+  ctx.shadowBlur = pen.blur || 0
+
+  if (pass === 0) {
+    ctx.lineWidth = lw
+    ctx.globalAlpha = baseAlpha
+  } else {
+    ctx.lineWidth = lw * (0.4 + Math.random() * 0.4)
+    ctx.globalAlpha = Math.max(0.04, baseAlpha * 0.28)
+  }
+}, [strokeOpacity])
+
+
+
+
+
+
+
+  // ── Draw segment with per-style effects ──────────────────────
+  const drawSeg = useCallback((ctx,pts,pi,pen)=>{
+    const style=penStyleRef.current
+    const j=()=>pen.jitter>0?(Math.random()-.5)*pen.jitter:0
+    const passes=pen.passes||1
+    for(let pass=0;pass<passes;pass++){
+      if(pass>0) applyPen(ctx,pen,strokeWidthMultiplier,pass)
+      if(pi<pts.length-1){
+        const mx=(pts[pi][0]+pts[pi+1][0])/2+j()
+        const my=(pts[pi][1]+pts[pi+1][1])/2+j()
+        ctx.quadraticCurveTo(pts[pi][0]+j(),pts[pi][1]+j(),mx,my)
+      } else ctx.lineTo(pts[pi][0]+j(),pts[pi][1]+j())
+      ctx.stroke()
+      if(style==='pencil'&&Math.random()<.10){ctx.save();ctx.globalAlpha*=.22;ctx.lineWidth=.4;const ox=(Math.random()-.5)*3.5,oy=(Math.random()-.5)*3.5;ctx.beginPath();ctx.moveTo(pts[pi][0]+ox,pts[pi][1]+oy);if(pi<pts.length-1)ctx.lineTo((pts[pi][0]+pts[pi+1][0])/2+ox,(pts[pi][1]+pts[pi+1][1])/2+oy);ctx.stroke();ctx.restore()}
+      if(style==='charcoal'&&Math.random()<.07){ctx.save();ctx.globalAlpha*=.10;ctx.beginPath();ctx.arc(pts[pi][0]+j()*5,pts[pi][1]+j()*5,pen.lw*2,0,Math.PI*2);ctx.fill();ctx.restore()}
+
+
+      ctx.beginPath();ctx.moveTo(pts[pi][0]+j(),pts[pi][1]+j())
+    }
+  },[applyPen,strokeWidthMultiplier])
+
   // ── Stroke drawing tick ──────────────────────────────────────
-  const tick = useCallback(() => {
-    const c = canvasRef.current; if (!c) { rafRef.current=null; return }
-    const ctx = getCtx()
-    const pen = PENS[penStyleRef.current] || PENS.pencil
-    const ppf = SPEED_PTS[speedRef.current] || 12
-
-    ctx.strokeStyle='#1a1a1a'; ctx.lineCap='round'; ctx.lineJoin='round'
-    ctx.globalAlpha = typeof strokeOpacity==='number'
-      ? Math.min(1,Math.max(0,strokeOpacity)) : pen.alpha
-    ctx.lineWidth   = pen.lw*(typeof strokeWidthMultiplier==='number'?strokeWidthMultiplier:1)
-    ctx.globalCompositeOperation='source-over'
-    ctx.shadowBlur  = penStyleRef.current==='neon'?14:0
-    ctx.shadowColor = penStyleRef.current==='neon'?'#aaaaff':'transparent'
-
+  const tick=useCallback(()=>{
+    const c=canvasRef.current;if(!c){rafRef.current=null;return}
+    const ctx=getCtx()
+    const pen=PENS[penStyleRef.current]||PENS.pencil
+    const ppf=SPEED_PTS[speedRef.current]||12
+    const swMul=typeof strokeWidthMultiplier==='number'?strokeWidthMultiplier:1
+    applyPen(ctx,pen,swMul,0)
     let d=0
     while(d<ppf){
       const qi=queuePosRef.current
       if(qi>=queueRef.current.length){
-        ctx.shadowBlur=0; rafRef.current=null; runningRef.current=false
-        setIsDone(true); setDrawn(queueRef.current.length)
-        if(fillAfterDone){ fillPollRef.current=0; setTimeout(startFillAnimation,600) }
-        onComplete?.(); return
+        ctx.shadowBlur=0;rafRef.current=null;runningRef.current=false
+        setIsDone(true);setDrawn(queueRef.current.length)
+        if(fillAfterDone){fillPollRef.current=0;setTimeout(startFillAnimation,600)}
+        onComplete?.();return
       }
-      const{pts}=queueRef.current[qi]; const pi=ptPosRef.current
-      if(pi===0){
-        ctx.beginPath(); if(pts.length>0) ctx.moveTo(pts[0][0],pts[0][1])
-        ptPosRef.current=1; d++; continue
-      }
-      if(pi<pts.length){
-        if(pi<pts.length-1){
-          const mx=(pts[pi][0]+pts[pi+1][0])/2,my=(pts[pi][1]+pts[pi+1][1])/2
-          ctx.quadraticCurveTo(pts[pi][0],pts[pi][1],mx,my)
-        } else ctx.lineTo(pts[pi][0],pts[pi][1])
-        ctx.stroke(); ctx.beginPath(); ctx.moveTo(pts[pi][0],pts[pi][1])
-        ptPosRef.current=pi+1; d++
-      }
-      if(ptPosRef.current>=pts.length){
-        ctx.stroke(); queuePosRef.current++; ptPosRef.current=0
-        setDrawn(queuePosRef.current)
-      }
+      const{pts}=queueRef.current[qi];const pi=ptPosRef.current
+      if(pi===0){ctx.beginPath();if(pts.length>0)ctx.moveTo(pts[0][0],pts[0][1]);ptPosRef.current=1;d++;continue}
+      if(pi<pts.length){drawSeg(ctx,pts,pi,pen);ptPosRef.current=pi+1;d++}
+      if(ptPosRef.current>=pts.length){ctx.stroke();queuePosRef.current++;ptPosRef.current=0;setDrawn(queuePosRef.current);applyPen(ctx,pen,swMul,0)}
     }
     rafRef.current=requestAnimationFrame(tick)
-  },[onComplete,strokeOpacity,strokeWidthMultiplier,fillAfterDone,startFillAnimation,getCtx])
+  },[onComplete,strokeOpacity,strokeWidthMultiplier,fillAfterDone,startFillAnimation,getCtx,applyPen,drawSeg])
 
   const resetFill = useCallback(() => {
     if(fillRafRef.current) cancelAnimationFrame(fillRafRef.current)
